@@ -26,9 +26,17 @@ $(document).ready(function () {
     createNewBucket();
   });
 
+  $('#submitTranslation').click(function () {
+    submitTranslation();
+  });
+
   $('#createBucketModal').on('shown.bs.modal', function () {
     $("#newBucketKey").focus();
-  })
+  });
+
+  $('#CompositeTranslationModal').on('shown.bs.modal', function () {
+    $("#rootDesignFilename").focus();
+  });
 
   $('#hiddenUploadField').change(function () {
     var node = $('#appBuckets').jstree(true).get_selected(true)[0];
@@ -111,22 +119,19 @@ function prepareAppBucketTree() {
     if (data != null && data.node != null && data.node.type == 'object') {
       $("#forgeViewer").empty();
       var urn = data.node.id;
-      getForgeToken(function (access_token) {
-        jQuery.ajax({
-          url: 'https://developer.api.autodesk.com/modelderivative/v2/designdata/' + urn + '/manifest',
-          headers: { 'Authorization': 'Bearer ' + access_token },
-          success: function (res) {
-            if (res.progress === 'success' || res.progress === 'complete') launchViewer(urn);
-            else $("#forgeViewer").html('The translation job still running: ' + res.progress + '. Please try again in a moment.');
-          },
-          error: function (err) {
-            var msgButton = 'This file is not translated yet! ' +
-              '<button class="btn btn-xs btn-info" onclick="translateObject()"><span class="glyphicon glyphicon-eye-open"></span> ' +
-              'Start translation</button>'
-            $("#forgeViewer").html(msgButton);
-          }
-        });
-      })
+      jQuery.ajax({
+        url: '/api/forge/modelderivative/manifest/' + urn,
+        success: function (res) {
+          if (res.progress === 'success' || res.progress === 'complete') launchViewer(urn);
+          else $("#forgeViewer").html('The translation job still running: ' + res.progress + '. Please try again in a moment.');
+        },
+        error: function (err) {
+          var msgButton = 'This file is not translated yet! ' +
+            '<button class="btn btn-xs btn-info" onclick="translateObject()"><span class="glyphicon glyphicon-eye-open"></span> ' +
+            'Start translation</button>'
+          $("#forgeViewer").html(msgButton);
+        }
+      });
     }
   });
 }
@@ -167,17 +172,30 @@ function uploadFile() {
   $('#hiddenUploadField').click();
 }
 
-function translateObject(node) {
+function submitTranslation(node) {
   $("#forgeViewer").empty();
   if (node == null) node = $('#appBuckets').jstree(true).get_selected(true)[0];
   var bucketKey = node.parents[0];
   var objectKey = node.id;
+  var rootDesignFilename = $('#rootDesignFilename').val();
+  var data = { 'bucketKey': bucketKey, 'objectName': objectKey };
+
+  if((rootDesignFilename && rootDesignFilename.trim() && rootDesignFilename.trim().length > 0)) {
+    data.rootFilename = rootDesignFilename;
+    data.compressedUrn = true;
+  }
+  
   jQuery.post({
     url: '/api/forge/modelderivative/jobs',
     contentType: 'application/json',
-    data: JSON.stringify({ 'bucketKey': bucketKey, 'objectName': objectKey }),
+    data: JSON.stringify(data),
     success: function (res) {
+      $('#CompositeTranslationModal').modal('toggle');
       $("#forgeViewer").html('Translation started! Please try again in a moment.');
     },
   });
+}
+
+function translateObject() {
+  $('#CompositeTranslationModal').modal('show');
 }
