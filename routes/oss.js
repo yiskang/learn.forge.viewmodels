@@ -59,7 +59,7 @@ router.get('/buckets', async (req, res, next) => {
     } else {
         try {
             // Retrieve objects from Forge using the [ObjectsApi](https://github.com/Autodesk-Forge/forge-api-nodejs-client/blob/master/docs/ObjectsApi.md#getObjects)
-            const objects = await new ObjectsApi().getObjects(bucket_name, {}, req.oauth_client, req.oauth_token);
+            const objects = await new ObjectsApi().getObjects(bucket_name, { limit: 64 }, req.oauth_client, req.oauth_token);
             res.json(objects.body.items.map((object) => {
                 return {
                     id: Buffer.from(object.objectId).toString('base64'),
@@ -113,6 +113,7 @@ const uploadFileChunk = function(bucketKey, filePath, fileName, oauth2client, cr
 
                 // generates uniques session ID
                 let sessionId = guid.create();
+                console.log(`**** Uploading Chunks Session ${sessionId} *****`);
                 let uploadChuckArray = [];
 
                 let range;
